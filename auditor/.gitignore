@@ -1,0 +1,4 @@
+node_modules
+dist
+vertex-key.json
+.env
