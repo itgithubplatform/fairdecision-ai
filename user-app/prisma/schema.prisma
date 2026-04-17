@@ -48,6 +48,7 @@ model User {
   requestLogs   RequestLog[]
   accounts      Account[]
   sessions      Session[]
+  csvBatches    CsvBatch[]
 }
 
 
@@ -59,6 +60,7 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+<<<<<<< HEAD
 model ApiKey {
   id        String   @id @default(cuid())
   keyHash   String   @unique
@@ -101,4 +103,37 @@ model RequestLog {
   @@index([userId, createdAt(sort: Desc)]) 
   @@index([decision])           
   @@index([isProcessed])               
+=======
+model CsvBatch {
+  id          String   @id @default(cuid())
+  userId      String
+  filename    String
+  totalRows   Int      @default(0)
+  processed   Int      @default(0)
+  status      String   @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  records     CsvRecord[]
+}
+
+model CsvRecord {
+  id               String   @id @default(cuid())
+  batchId          String
+  originalRow      String   // Stored JSON string of the row
+  textToEvaluate   String   // The text sent to Vertex Guardrail
+  
+  // Guardrail outputs
+  action           String?  
+  threatLabel      String?
+  threatScore      Float?
+  ruleMatched      String?
+  ruleScore        Float?
+  
+  status           String   @default("PENDING") // PENDING, PROCESSED, ERROR
+  createdAt        DateTime @default(now())
+  processedAt      DateTime?
+
+  batch            CsvBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+>>>>>>> e541a18 (updated)
 }

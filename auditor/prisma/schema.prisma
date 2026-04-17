@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Mirrors the guardrail_logs collection from MongoDB
+model GuardrailLog {
+  id              String   @id @default(cuid())
+  timestamp       DateTime @default(now())
+  end_user_id     String
+  user_prompt     String
+
+  // Execution info (was embedded subdocument)
+  gate_triggered      String
+  total_latency_ms    Float
+  roberta_latency_ms  Float?
+  deberta_latency_ms  Float?
+
+  // Decision info (was embedded subdocument)
+  action              String   // AUTO_PASSED | AUTO_BLOCKED | QUARANTINED | MODIFIED
+  triggered_rule      String
+  confidence_score    Float
+
+  // Audit info (was embedded subdocument)
+  audit_status        String   @default("PENDING") // PENDING | PROCESSED
+  audit_verdict       String?  // AGREE | FALSE_POSITIVE | FALSE_NEGATIVE
+  audit_reasoning     String?
+  audit_suggestion    String?
+  audit_audited_at    DateTime?
+
+  @@map("guardrail_logs")
+}
