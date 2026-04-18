@@ -1,4 +1,7 @@
 import { PrismaClient } from "@prisma/client";
+
+// Instantiate the Prisma Client directly in this file
+// This guarantees your editor accurately detects the types.
 const prisma = new PrismaClient();
 
 // Matches BOTH response shapes from main.py /evaluate:
