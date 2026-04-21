@@ -5,9 +5,9 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
 import { motion } from "framer-motion"
-import { 
-  Menu, ShieldCheck, LayoutDashboard, Key, Activity, 
-  Settings, LogOut, FileText, Zap, User
+import {
+  Menu, ShieldCheck, LayoutDashboard, Key, Activity,
+  Settings, LogOut, User
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -28,18 +28,12 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
-// 1. Define routes based on Auth State
-const publicLinks = [
-  { name: 'Features', href: '/#features', icon: Zap },
-  { name: 'Documentation', href: '/docs', icon: FileText },
-]
-
 const dashboardLinks = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'API Keys', href: '/dashboard/keys', icon: Key },
-  { name: 'Analytics', href: '/dashboard/analytics', icon: Activity },
+  { name: 'Dashboard',  href: '/dashboard',           icon: LayoutDashboard },
+  { name: 'API Keys',   href: '/dashboard/keys',       icon: Key },
+  { name: 'Analytics',  href: '/dashboard/analytics',  icon: Activity },
   { name: 'Playground', href: '/dashboard/playground', icon: Activity },
-  { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+  { name: 'Settings',   href: '/dashboard/settings',   icon: Settings },
 ]
 
 export default function Navbar() {
@@ -49,153 +43,125 @@ export default function Navbar() {
 
   const isLoading = status === "loading"
   const isAuthenticated = status === "authenticated"
-  const activeLinks = isAuthenticated ? dashboardLinks : publicLinks
+  const activeLinks = isAuthenticated ? dashboardLinks : []
 
   return (
-    <motion.header 
+    <motion.header
       initial={{ y: -10, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
       className="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-md font-sans"
     >
       <div className="flex h-16 items-center px-4 md:px-8 max-w-[1400px] mx-auto">
-        
-        {/* Mobile Menu (Sheet Drawer) */}
-        <div className="flex items-center md:hidden">
-          <Sheet open={isOpen} onOpenChange={setIsOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="-ml-2 text-muted-foreground hover:text-foreground">
-                <Menu className="h-5 w-5" />
-                <span className="sr-only">Toggle menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-[280px] sm:w-[320px] p-0 border-r border-border bg-background">
-              <SheetHeader className="p-6 border-b border-border text-left">
-                <SheetTitle className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
-                    <ShieldCheck className="w-5 h-5 text-primary-foreground" />
-                  </div>
-                  <span className="text-xl font-semibold tracking-tight text-foreground">Aegis AI</span>
-                </SheetTitle>
-              </SheetHeader>
-              
-              <div className="py-4 px-3 space-y-1">
-                {activeLinks.map((item) => {
-                  const isActive = pathname === item.href
-                  return (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      onClick={() => setIsOpen(false)}
-                      className={`
-                        flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all
-                        ${isActive 
-                          ? "bg-accent text-accent-foreground" 
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                        }
-                      `}
-                    >
-                      <item.icon className={`h-4 w-4 ${isActive ? "text-foreground" : "text-muted-foreground"}`} />
-                      {item.name}
-                    </Link>
-                  )
-                })}
-              </div>
 
-              {/* Mobile Auth Buttons */}
-              <div className="absolute bottom-0 w-full p-4 border-t border-border bg-muted/30">
-                {!isLoading && !isAuthenticated ? (
-                  <div className="flex flex-col gap-2">
-                    <Link href="/auth/signin" onClick={() => setIsOpen(false)}>
-                      <Button variant="outline" className="w-full bg-background">Sign In</Button>
-                    </Link>
-                    <Link href="/auth/signup" onClick={() => setIsOpen(false)}>
-                      <Button className="w-full">Get Started</Button>
-                    </Link>
-                  </div>
-                ) : (
-                  <Button 
-                    variant="ghost" 
+        {/* Mobile Menu — only when authenticated */}
+        {isAuthenticated && (
+          <div className="flex items-center md:hidden">
+            <Sheet open={isOpen} onOpenChange={setIsOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="-ml-2 text-muted-foreground hover:text-foreground">
+                  <Menu className="h-5 w-5" />
+                  <span className="sr-only">Toggle menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[280px] sm:w-[320px] p-0 border-r border-border bg-background">
+                <SheetHeader className="p-6 border-b border-border text-left">
+                  <SheetTitle className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
+                      <ShieldCheck className="w-5 h-5 text-primary-foreground" />
+                    </div>
+                    <span className="text-xl font-semibold tracking-tight text-foreground">FairDecision</span>
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="py-4 px-3 space-y-1">
+                  {activeLinks.map((item) => {
+                    const isActive = pathname === item.href
+                    return (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        onClick={() => setIsOpen(false)}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                          isActive
+                            ? "bg-accent text-accent-foreground"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        }`}
+                      >
+                        <item.icon className={`h-4 w-4 ${isActive ? "text-foreground" : "text-muted-foreground"}`} />
+                        {item.name}
+                      </Link>
+                    )
+                  })}
+                </div>
+                <div className="absolute bottom-0 w-full p-4 border-t border-border bg-muted/30">
+                  <Button
+                    variant="ghost"
                     className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
                     onClick={() => signOut({ callbackUrl: '/' })}
                   >
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign Out
                   </Button>
-                )}
-              </div>
-            </SheetContent>
-          </Sheet>
-        </div>
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
+        )}
 
-        {/* Brand Logo (Desktop & Mobile) */}
+        {/* Brand — shield icon only, no text */}
         <Link href="/" className="flex items-center gap-2.5 ml-4 md:ml-0 group">
-          <motion.div 
+          <motion.div
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             className="w-8 h-8 bg-primary rounded-md flex items-center justify-center shadow-sm"
           >
             <ShieldCheck className="w-5 h-5 text-primary-foreground" />
           </motion.div>
-          <span className="text-xl font-semibold tracking-tight text-foreground hidden sm:inline-block">
-            Aegis AI
-          </span>
         </Link>
 
-        {/* Desktop Navigation Center with Framer Motion Layout Animation */}
-        <nav className="hidden md:flex items-center ml-10 space-x-2">
-          {!isLoading && activeLinks.map((item) => {
-            const isActive = pathname === item.href
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className="relative px-3 py-2 rounded-md text-sm font-medium"
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="navbar-indicator"
-                    className="absolute inset-0 bg-accent rounded-md z-0"
-                    initial={false}
-                    transition={{ type: "spring", bounce: 0.3, duration: 0.6 }}
-                  />
-                )}
-                <span className={`relative z-10 transition-colors duration-200 ${
-                  isActive ? "text-accent-foreground" : "text-muted-foreground hover:text-foreground"
-                }`}>
-                  {item.name}
-                </span>
-              </Link>
-            )
-          })}
-        </nav>
+        {/* Desktop Nav Links — only when authenticated */}
+        {isAuthenticated && (
+          <nav className="hidden md:flex items-center ml-10 space-x-2">
+            {!isLoading && activeLinks.map((item) => {
+              const isActive = pathname === item.href
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className="relative px-3 py-2 rounded-md text-sm font-medium"
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="navbar-indicator"
+                      className="absolute inset-0 bg-accent rounded-md z-0"
+                      initial={false}
+                      transition={{ type: "spring", bounce: 0.3, duration: 0.6 }}
+                    />
+                  )}
+                  <span className={`relative z-10 transition-colors duration-200 ${
+                    isActive ? "text-accent-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}>
+                    {item.name}
+                  </span>
+                </Link>
+              )
+            })}
+          </nav>
+        )}
 
-        {/* Right Side Auth / Profile */}
+        {/* Right Side — avatar only, no Sign In / Get Started */}
         <div className="ml-auto flex items-center gap-2 md:gap-4">
-          
           {isLoading && (
-            <div className="h-8 w-24 bg-muted animate-pulse rounded-md hidden md:block" />
-          )}
-
-          {!isLoading && !isAuthenticated && (
-            <div className="hidden md:flex items-center gap-2">
-              <Link href="/auth/signin">
-                <Button variant="ghost" className="text-muted-foreground hover:text-foreground">Sign In</Button>
-              </Link>
-              <Link href="/auth/signup">
-                <Button>Get Started</Button>
-              </Link>
-            </div>
+            <div className="h-8 w-8 bg-muted animate-pulse rounded-full" />
           )}
 
           {!isLoading && isAuthenticated && (
             <>
-              {/* Status Indicator */}
               <div className="hidden md:flex items-center gap-2 mr-2 bg-muted/50 px-2.5 py-1 rounded-full border border-border">
                 <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-xs font-medium text-muted-foreground">Operational</span>
               </div>
-              
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-8 w-8 rounded-full ring-2 ring-transparent hover:ring-border p-0 transition-all">
@@ -228,7 +194,7 @@ export default function Navbar() {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer"
                     onClick={() => signOut({ callbackUrl: '/' })}
                   >

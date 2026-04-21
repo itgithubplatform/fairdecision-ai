@@ -1,3 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String          @id @default(cuid())
+  name          String?
+  email         String          @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  authenticators Authenticator[]
+  apiKeys       ApiKey[]
+  customRules   CustomRule[]
+  requestLogs   RequestLog[]
+  csvBatches    CsvBatch[]
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+model Authenticator {
+  credentialID         String  @unique
+  userId               String
+  providerAccountId    String
+  credentialPublicKey  String
+  counter              Int
+  credentialDeviceType String
+  credentialBackedUp   Boolean
+  transports           String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, credentialID])
+}
+
 model ApiKey {
   id        String   @id @default(cuid())
   keyHash   String   @unique
@@ -11,9 +91,9 @@ model ApiKey {
 
 model CustomRule {
   id          String   @id @default(cuid())
-  ruleText    String   @db.Text 
+  ruleText    String   @db.Text
   category    String   @default("General Compliance")
-  isActive    Boolean  @default(true) 
+  isActive    Boolean  @default(true)
   isSystem    Boolean  @default(false)
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -27,50 +107,60 @@ model RequestLog {
   id            String   @id @default(cuid())
   userId        String
   prompt        String   @db.Text
-  decision      String   
+  decision      String
   latency       Float
-  violationData Json   
-  
+  violationData Json
+
   isProcessed   Boolean  @default(false)
-  auditorStatus String?  
+  auditorStatus String?
   auditorNotes  String?  @db.Text
 
   createdAt     DateTime @default(now())
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId, createdAt(sort: Desc)]) 
-  @@index([decision])           
-  @@index([isProcessed])               
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([decision])
+  @@index([isProcessed])
 }
 
 model CsvBatch {
-  id          String   @id @default(cuid())
-  userId      String
-  filename    String
-  totalRows   Int      @default(0)
-  processed   Int      @default(0)
-  status      String   @default("PENDING")
-  createdAt   DateTime @default(now())
+  id                String     @id @default(cuid())
+  userId            String
+  filename          String
+  totalRows         Int        @default(0)
+  processed         Int        @default(0)
+  auditorCompleted  Int        @default(0)
+  status            String     @default("PENDING")
+  createdAt         DateTime   @default(now())
 
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  records     CsvRecord[]
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  records           CsvRecord[]
 }
 
 model CsvRecord {
-  id               String   @id @default(cuid())
+  id               String    @id @default(cuid())
   batchId          String
   originalRow      String
   textToEvaluate   String
-  
-  action           String?  
+
+  // Guardrail layer outputs
+  action           String?
   threatLabel      String?
   threatScore      Float?
   ruleMatched      String?
   ruleScore        Float?
-  
-  status           String   @default("PENDING")
-  createdAt        DateTime @default(now())
-  processedAt      DateTime?
 
-  batch            CsvBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  // Auditor layer outputs
+  auditVerdict     String?   // AGREE | FALSE_POSITIVE | FALSE_NEGATIVE
+  auditReasoning   String?
+  auditSuggestion  String?
+  riskLevel        String?   // LOW | MEDIUM | HIGH
+  finalScore       Float?
+
+  status           String    @default("PENDING")  // PENDING | PROCESSED | AUDITED | ERROR
+  createdAt        DateTime  @default(now())
+  processedAt      DateTime?
+  auditedAt        DateTime?
+
+  batch            CsvBatch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
 }

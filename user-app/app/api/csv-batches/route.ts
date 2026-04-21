@@ -8,19 +8,22 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
-    // Auth check
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     
     const batches = await prisma.csvBatch.findMany({
-      where: {
-        userId: session.user.id
+      where: { userId: session.user.id },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        filename: true,
+        totalRows: true,
+        processed: true,
+        auditorCompleted: true,
+        status: true,
+        createdAt: true,
       },
-      orderBy: {
-        createdAt: "desc"
-      },
-      take: 20
     });
 
     return NextResponse.json({ success: true, batches });

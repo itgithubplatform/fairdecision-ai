@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import { GeminiAuditResult, GuardrailLog } from './types/cornTypes';
 import { auditSchema } from './schema/auditSchema';
 import safeJsonParse from './lib/safeJsonParse';
-import { prisma } from '../prisma';
+import { prisma } from './lib/prisma';
 
 dotenv.config();
 
