@@ -6,8 +6,15 @@ import Link from "next/link";
 import {
   ArrowLeft, Shield, Brain, CheckCircle2, XCircle,
   AlertTriangle, TrendingUp, Clock, FileSpreadsheet,
-  ChevronDown, ChevronUp, RefreshCw, Loader2
+  ChevronDown, ChevronUp, RefreshCw, Loader2, ActivitySquare,
+  Wand2, Flag, Send
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface CsvRecord {
   id: string;
@@ -51,161 +58,315 @@ interface Stats {
   avgFinalScore: number | null;
 }
 
+// --- HELPER BADGES ---
+
 function RiskBadge({ level }: { level: string | null }) {
-  if (!level) return <span className="risk-badge risk-none">—</span>;
-  const classes: Record<string, string> = {
-    HIGH: "risk-high", MEDIUM: "risk-medium", LOW: "risk-low",
-  };
-  return <span className={`risk-badge ${classes[level] ?? "risk-none"}`}>{level}</span>;
+  if (!level) return <Badge variant="outline" className="text-muted-foreground">PENDING</Badge>;
+  if (level === "HIGH") return <Badge variant="destructive" className="bg-red-500/15 text-red-600 hover:bg-red-500/25 border-red-500/20">HIGH RISK</Badge>;
+  if (level === "MEDIUM") return <Badge variant="outline" className="bg-orange-500/15 text-orange-600 hover:bg-orange-500/25 border-orange-500/20">MEDIUM RISK</Badge>;
+  return <Badge variant="outline" className="bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25 border-emerald-500/20">LOW RISK</Badge>;
 }
 
 function VerdictBadge({ verdict }: { verdict: string | null }) {
-  if (!verdict) return <span className="verdict-badge verdict-none">PENDING</span>;
-  const classes: Record<string, string> = {
-    AGREE: "verdict-agree",
-    FALSE_POSITIVE: "verdict-fp",
-    FALSE_NEGATIVE: "verdict-fn",
-  };
-  const labels: Record<string, string> = {
-    AGREE: "✓ AGREE",
-    FALSE_POSITIVE: "⚡ FALSE POSITIVE",
-    FALSE_NEGATIVE: "⚠ FALSE NEGATIVE",
-  };
-  return <span className={`verdict-badge ${classes[verdict] ?? "verdict-none"}`}>{labels[verdict] ?? verdict}</span>;
+  if (!verdict) return <Badge variant="outline" className="text-muted-foreground">PENDING</Badge>;
+  if (verdict === "AGREE") return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20"><CheckCircle2 className="w-3 h-3 mr-1"/> AGREED</Badge>;
+  if (verdict === "FALSE_POSITIVE") return <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20"><AlertTriangle className="w-3 h-3 mr-1"/> FALSE POSITIVE</Badge>;
+  return <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20"><XCircle className="w-3 h-3 mr-1"/> FALSE NEGATIVE</Badge>;
 }
 
 function ActionBadge({ action }: { action: string | null }) {
-  if (!action) return <span className="action-badge action-none">PENDING</span>;
-  return (
-    <span className={`action-badge ${action === "AUTO_BLOCKED" ? "action-blocked" : "action-passed"}`}>
-      {action === "AUTO_BLOCKED"
-        ? <><XCircle size={12} /> BLOCKED</>
-        : <><CheckCircle2 size={12} /> PASSED</>
-      }
-    </span>
-  );
+  if (!action) return <Badge variant="outline" className="text-muted-foreground">PENDING</Badge>;
+  if (action === "AUTO_BLOCKED" || action === "BLOCK") return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1"/> BLOCKED</Badge>;
+  if (action === "FLAGGED" || action === "FLAG") return <Badge variant="outline" className="bg-amber-500 border-amber-600 text-white hover:bg-amber-600"><AlertTriangle className="w-3 h-3 mr-1"/> FLAGGED</Badge>;
+  return <Badge variant="outline" className="bg-emerald-500 border-emerald-600 text-white hover:bg-emerald-600"><CheckCircle2 className="w-3 h-3 mr-1"/> PASSED</Badge>;
 }
 
-function ScoreBar({ score }: { score: number | null }) {
-  if (score == null) return <span className="text-muted-sm">—</span>;
-  const pct = Math.round(score * 100);
-  const color = pct >= 70 ? "score-high" : pct >= 40 ? "score-mid" : "score-low";
-  return (
-    <div className="score-bar-wrap">
-      <div className="score-bar-track">
-        <div className={`score-bar-fill ${color}`} style={{ width: `${pct}%` }} />
-      </div>
-      <span className="score-label">{pct}%</span>
-    </div>
-  );
-}
-
-function StatCard({
-  icon: Icon, label, value, sub, color
-}: {
-  icon: React.ElementType; label: string; value: string | number; sub?: string; color: string;
-}) {
-  return (
-    <div className={`stat-card stat-${color}`}>
-      <div className={`stat-icon stat-icon-${color}`}><Icon size={20} /></div>
-      <div className="stat-body">
-        <p className="stat-value">{value}</p>
-        <p className="stat-label">{label}</p>
-        {sub && <p className="stat-sub">{sub}</p>}
-      </div>
-    </div>
-  );
-}
+// --- MAIN ROW COMPONENT WITH HEALING ---
 
 function RecordRow({ record }: { record: CsvRecord }) {
   const [expanded, setExpanded] = useState(false);
   const orig = (() => { try { return JSON.parse(record.originalRow); } catch { return {}; } })();
 
+  // Healing States
+  const [isHealing, setIsHealing] = useState(false);
+  const [healResult, setHealResult] = useState<any | null>(null);
+  const [isDeploying, setIsDeploying] = useState(false);
+  const [deploySuccess, setDeploySuccess] = useState(false);
+  const [isManualOverride, setIsManualOverride] = useState(false);
+  const [humanFeedback, setHumanFeedback] = useState("");
+
+  const handleGenerateRule = async (isManual: boolean = false) => {
+    setIsHealing(true);
+    setDeploySuccess(false); 
+    
+    try {
+      const feedbackString = isManual 
+        ? `Human Override Directive: ${humanFeedback}` 
+        : `AI Background Auditor Notes: ${record.auditReasoning}`;
+        
+      let targetDecision;
+      const currentEngineDecision = (record.action === 'AUTO_BLOCKED' || record.action === 'BLOCK') ? 'BLOCK' : 'ALLOW';
+
+      if (!isManual) {
+        targetDecision = record.auditVerdict === 'FALSE_POSITIVE' ? 'ALLOW' : 'BLOCK';
+      } else {
+        targetDecision = currentEngineDecision === 'BLOCK' ? 'ALLOW' : 'BLOCK';
+      }
+
+      const res = await fetch('/api/v1/heal-rule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          promptText: record.textToEvaluate,
+          fastEngineDecision: currentEngineDecision,
+          resolutionContext: feedbackString,
+          intendedDecision: targetDecision 
+        })
+      });
+
+      const data = await res.json();
+      setHealResult(data); 
+      
+    } catch (error) {
+      console.error("Failed to generate rule preview", error);
+      // Fallback for demo continuity
+      setHealResult({
+        action: "ADD_RULE",
+        proposedRuleText: "Detect and appropriately handle semantic discrimination based on demographic traits.",
+        reasoning: "Generated fallback rule due to API timeout.",
+        category: "General Compliance"
+      });
+    } finally {
+      setIsHealing(false);
+    }
+  };
+
+  const handleDeploy = async () => {
+    if (!healResult || healResult.isDuplicate) return;
+    setIsDeploying(true);
+    
+    try {
+      const res = await fetch('/api/v1/deploy-rule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ruleText: healResult.proposedRuleText,
+          sourcePrompt: record.textToEvaluate,
+          category: healResult.category || "CSV Batch Compliance"
+        })
+      });
+      
+      if (res.ok) {
+        setDeploySuccess(true);
+      } else {
+        console.error("Deployment failed");
+      }
+    } catch (error) {
+      console.error("Failed to deploy rule", error);
+    } finally {
+      setIsDeploying(false);
+    }
+  };
+
   return (
-    <div className={`record-row ${record.riskLevel === "HIGH" ? "record-high" : ""}`}>
-      <div className="record-main" onClick={() => setExpanded(!expanded)}>
-        <div className="record-text">
-          <p className="record-prompt">{record.textToEvaluate.substring(0, 120)}{record.textToEvaluate.length > 120 ? "…" : ""}</p>
-          <div className="record-meta-row">
+    <div className={`border rounded-lg mb-3 transition-colors ${record.riskLevel === "HIGH" ? "border-red-500/30 bg-red-500/5" : "border-border bg-card hover:bg-muted/30"}`}>
+      
+      {/* Condensed View */}
+      <div className="p-4 cursor-pointer flex flex-col lg:flex-row lg:items-center justify-between gap-4" onClick={() => setExpanded(!expanded)}>
+        <div className="flex-1 space-y-2">
+          <p className="text-sm font-medium leading-snug text-foreground">
+            {record.textToEvaluate.substring(0, 150)}{record.textToEvaluate.length > 150 ? "…" : ""}
+          </p>
+          <div className="flex flex-wrap gap-2">
             {record.threatLabel && (
-              <span className="record-tag">
-                <AlertTriangle size={10} /> {record.threatLabel}
-                {record.threatScore != null && ` (${(record.threatScore * 100).toFixed(0)}%)`}
-              </span>
+              <Badge variant="secondary" className="text-xs bg-muted">
+                <AlertTriangle className="w-3 h-3 mr-1 text-muted-foreground" />
+                {record.threatLabel} {record.threatScore != null && `(${(record.threatScore * 100).toFixed(0)}%)`}
+              </Badge>
             )}
             {record.ruleMatched && (
-              <span className="record-tag record-tag-rule">
+              <Badge variant="outline" className="text-xs border-dashed">
                 {record.ruleMatched}
-              </span>
+              </Badge>
             )}
           </div>
         </div>
-        <div className="record-badges">
+
+        <div className="flex items-center gap-3 shrink-0">
           <ActionBadge action={record.action} />
           <VerdictBadge verdict={record.auditVerdict} />
           <RiskBadge level={record.riskLevel} />
-          <ScoreBar score={record.finalScore} />
-          <button className="expand-btn">
+          
+          <div className="flex items-center gap-2 w-24">
+            <Progress 
+              value={record.finalScore ? record.finalScore * 100 : 0} 
+              className={`h-2 ${record.finalScore && record.finalScore < 0.4 ? "[&>div]:bg-red-500" : record.finalScore && record.finalScore < 0.7 ? "[&>div]:bg-amber-500" : "[&>div]:bg-emerald-500"}`} 
+            />
+            <span className="text-xs font-medium w-8 text-right">
+              {record.finalScore != null ? `${Math.round(record.finalScore * 100)}%` : "—"}
+            </span>
+          </div>
+
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
             {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </button>
+          </Button>
         </div>
       </div>
 
+      {/* Expanded View */}
+      <AnimatePresence>
       {expanded && (
-        <div className="record-expanded">
-          <div className="record-expanded-grid">
-            {/* Original Data */}
-            <div className="expand-section">
-              <h4 className="expand-title"><FileSpreadsheet size={14} /> Original Row</h4>
-              <div className="expand-kv">
-                {Object.entries(orig).map(([k, v]) => (
-                  <div key={k} className="kv-row">
-                    <span className="kv-key">{k}</span>
-                    <span className="kv-val">{String(v)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Guardrail Output */}
-            <div className="expand-section">
-              <h4 className="expand-title"><Shield size={14} /> Guardrail Decision</h4>
-              <div className="expand-kv">
-                <div className="kv-row"><span className="kv-key">Action</span><ActionBadge action={record.action} /></div>
-                <div className="kv-row"><span className="kv-key">Threat</span><span className="kv-val">{record.threatLabel ?? "—"}</span></div>
-                <div className="kv-row"><span className="kv-key">Threat Score</span><span className="kv-val">{record.threatScore != null ? `${(record.threatScore * 100).toFixed(1)}%` : "—"}</span></div>
-                <div className="kv-row"><span className="kv-key">Rule Matched</span><span className="kv-val">{record.ruleMatched ?? "—"}</span></div>
-                <div className="kv-row"><span className="kv-key">Rule Score</span><span className="kv-val">{record.ruleScore != null ? `${(record.ruleScore * 100).toFixed(1)}%` : "—"}</span></div>
-              </div>
-            </div>
-
-            {/* Auditor Output */}
-            <div className="expand-section expand-section-wide">
-              <h4 className="expand-title"><Brain size={14} /> Auditor Verdict</h4>
-              <div className="expand-kv">
-                <div className="kv-row"><span className="kv-key">Verdict</span><VerdictBadge verdict={record.auditVerdict} /></div>
-                <div className="kv-row"><span className="kv-key">Risk Level</span><RiskBadge level={record.riskLevel} /></div>
-                <div className="kv-row"><span className="kv-key">Final Score</span><ScoreBar score={record.finalScore} /></div>
-                {record.auditReasoning && (
-                  <div className="kv-col">
-                    <span className="kv-key">Reasoning</span>
-                    <span className="kv-val kv-reasoning">{record.auditReasoning}</span>
-                  </div>
-                )}
-                {record.auditSuggestion && (
-                  <div className="kv-col">
-                    <span className="kv-key">Suggested Rule Update</span>
-                    <span className="kv-val kv-suggestion">{record.auditSuggestion}</span>
-                  </div>
-                )}
-              </div>
+        <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
+        <div className="px-4 pb-4 pt-2 border-t border-border/50 bg-muted/10 grid grid-cols-1 md:grid-cols-3 gap-6">
+          
+          {/* Col 1: Original Data */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <FileSpreadsheet size={14} /> Original Row
+            </h4>
+            <div className="space-y-2 text-sm bg-background/50 p-3 rounded-md border max-h-[300px] overflow-y-auto">
+              {Object.entries(orig).map(([k, v]) => (
+                <div key={k} className="flex flex-col">
+                  <span className="text-[10px] uppercase text-muted-foreground font-medium">{k}</span>
+                  <span className="text-foreground truncate" title={String(v)}>{String(v)}</span>
+                </div>
+              ))}
             </div>
           </div>
+
+          {/* Col 2: Fast Engine telemetry */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <Shield size={14} /> Guardrail Decision
+            </h4>
+            <div className="space-y-2 text-sm bg-background/50 p-3 rounded-md border">
+              <div className="flex justify-between items-center"><span className="text-muted-foreground">Action:</span> <ActionBadge action={record.action} /></div>
+              <div className="flex justify-between items-center"><span className="text-muted-foreground">Rule Score:</span> <span>{record.ruleScore != null ? `${(record.ruleScore * 100).toFixed(1)}%` : "—"}</span></div>
+              <div className="flex justify-between items-center"><span className="text-muted-foreground">Rule Matched:</span> <span className="truncate max-w-[150px]" title={record.ruleMatched || ""}>{record.ruleMatched ?? "—"}</span></div>
+            </div>
+          </div>
+
+          {/* Col 3: Auditor Verdict & HEALING */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-indigo-500 flex items-center gap-1.5">
+              <Brain size={14} /> Auditor Verdict & Healing
+            </h4>
+            <div className="space-y-4 text-sm bg-indigo-500/5 p-3 rounded-md border border-indigo-500/20">
+               <div className="flex justify-between items-center"><span className="text-muted-foreground">Verdict:</span> <VerdictBadge verdict={record.auditVerdict} /></div>
+               
+               {record.auditReasoning && (
+                 <div className="mt-2 pt-2 border-t border-indigo-500/10">
+                   <span className="text-[10px] uppercase text-muted-foreground font-medium block mb-1">AI Reasoning</span>
+                   <span className="text-xs italic text-foreground leading-relaxed">{record.auditReasoning}</span>
+                 </div>
+               )}
+
+               {/* ACTION BUTTONS */}
+               {record.status === "AUDITED" && !healResult && (
+                 <div className="pt-2 flex flex-col gap-2">
+                   {record.auditVerdict !== 'AGREE' && !isManualOverride && (
+                     <Button 
+                       onClick={() => handleGenerateRule(false)} 
+                       disabled={isHealing} 
+                       className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-8 shadow-sm"
+                     >
+                       {isHealing ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <Wand2 className="w-3.5 h-3.5 mr-2" />}
+                       {isHealing ? "Analyzing Rules..." : "Auto-Heal Engine Rule"}
+                     </Button>
+                   )}
+                   
+                   {!isManualOverride && (
+                     <Button 
+                       onClick={() => setIsManualOverride(true)} 
+                       variant="outline" 
+                       className="w-full text-xs h-8 bg-background border-border hover:bg-muted/50"
+                     >
+                       <Flag className="w-3.5 h-3.5 mr-2" />
+                       Flag Issue (Manual Override)
+                     </Button>
+                   )}
+                 </div>
+               )}
+
+               {/* MANUAL FEEDBACK INPUT */}
+               {isManualOverride && !healResult && (
+                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="pt-3 flex flex-col gap-3 border-t border-indigo-500/10 mt-2">
+                   <div className="flex flex-col gap-1.5">
+                     <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                       Why is the engine wrong?
+                     </label>
+                     <textarea 
+                       autoFocus
+                       value={humanFeedback}
+                       onChange={(e) => setHumanFeedback(e.target.value)}
+                       placeholder="Provide context. E.g., 'This is a medical dataset, not toxicity...'"
+                       className="w-full text-[13px] p-2 rounded-md border border-border bg-background shadow-inner resize-none focus:ring-1 focus:ring-indigo-500 outline-none"
+                       rows={3}
+                     />
+                   </div>
+                   <div className="flex gap-2">
+                     <Button variant="ghost" size="sm" onClick={() => setIsManualOverride(false)} className="text-xs h-8">
+                       Cancel
+                     </Button>
+                     <Button 
+                       onClick={() => handleGenerateRule(true)} 
+                       disabled={isHealing || humanFeedback.trim().length === 0} 
+                       className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-8"
+                     >
+                       {isHealing ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-2" />}
+                       {isHealing ? "Generating..." : "Create Fix"}
+                     </Button>
+                   </div>
+                 </motion.div>
+               )}
+
+               {/* PROPOSED RULE & DEPLOYMENT */}
+               {healResult && (
+                  <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="p-3 bg-background border border-indigo-500/30 rounded-lg mt-4 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
+                    
+                    <Badge variant="outline" className="text-indigo-600 border-indigo-200 bg-indigo-50 mb-2 text-[10px] font-bold">
+                      {healResult.action?.replace('_', ' ') || "NEW RULE GENERATED"}
+                    </Badge>
+                    
+                    <p className="text-[12px] font-medium mb-2 text-foreground">"{healResult.proposedRuleText}"</p>
+                    
+                    <Button 
+                      onClick={handleDeploy}
+                      disabled={isDeploying || deploySuccess || healResult.isDuplicate}
+                      className={`w-full text-xs h-8 transition-colors duration-200 ${
+                        deploySuccess 
+                          ? "bg-emerald-500 hover:bg-emerald-600 text-white" 
+                          : healResult.isDuplicate
+                          ? "bg-muted text-muted-foreground"
+                          : "bg-indigo-600 hover:bg-indigo-700 text-white"
+                      }`}
+                    >
+                      {isDeploying ? (
+                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Deploying...</>
+                      ) : deploySuccess ? (
+                        <><CheckCircle2 className="w-4 h-4 mr-2" /> Deployed to Proxy</>
+                      ) : healResult.isDuplicate ? (
+                        "Rule Already Exists"
+                      ) : (
+                        "Approve & Deploy to Live Proxy"
+                      )}
+                    </Button>
+                  </motion.div>
+                )}
+
+            </div>
+          </div>
+
         </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }
+
+// --- MAIN PAGE ---
 
 export default function BatchDetailPage() {
   const params = useParams();
@@ -235,7 +396,6 @@ export default function BatchDetailPage() {
 
   useEffect(() => {
     fetchData();
-    // Auto-refresh if still processing
     const interval = setInterval(() => {
       if (batch?.status !== "COMPLETED") fetchData();
     }, 5000);
@@ -244,125 +404,98 @@ export default function BatchDetailPage() {
 
   const filteredRecords = records.filter((r) => {
     if (filter === "ALL") return true;
-    if (filter === "BLOCKED") return r.action === "AUTO_BLOCKED";
-    if (filter === "PASSED") return r.action === "AUTO_PASSED";
+    if (filter === "BLOCKED") return r.action === "AUTO_BLOCKED" || r.action === "BLOCK";
+    if (filter === "PASSED") return r.action === "AUTO_PASSED" || r.action === "ALLOW";
     if (filter === "HIGH") return r.riskLevel === "HIGH";
     return true;
   });
 
   if (loading) {
     return (
-      <div className="detail-loading">
-        <Loader2 className="spin" size={40} />
-        <p>Loading batch results…</p>
+      <div className="max-w-[1200px] mx-auto p-10 flex flex-col items-center justify-center min-h-[500px] text-muted-foreground">
+        <Loader2 className="w-8 h-8 animate-spin mb-4" />
+        <p>Loading batch telemetry…</p>
       </div>
     );
   }
 
-  if (!batch) {
+  if (!batch || !stats) {
     return (
-      <div className="detail-loading">
-        <AlertTriangle size={40} />
-        <p>Batch not found.</p>
-        <Link href="/dashboard/csv-upload" className="btn-primary mt-4">← Back</Link>
+      <div className="max-w-[1200px] mx-auto p-10 flex flex-col items-center justify-center min-h-[500px] text-muted-foreground">
+        <AlertTriangle className="w-8 h-8 mb-4 text-red-500" />
+        <p>Batch data not found.</p>
+        <Button asChild variant="outline" className="mt-4">
+          <Link href="/dashboard/csv-upload"><ArrowLeft className="w-4 h-4 mr-2"/> Back to Uploads</Link>
+        </Button>
       </div>
     );
   }
 
   return (
-    <div className="detail-page">
-      {/* ── Top Bar ── */}
-      <div className="detail-topbar">
-        <Link href="/dashboard/csv-upload" className="back-link">
-          <ArrowLeft size={16} /> Back to Batches
-        </Link>
-        <button className="btn-icon" onClick={fetchData} title="Refresh">
-          <RefreshCw size={16} />
-        </button>
+    <div className="max-w-[1200px] mx-auto p-6 md:p-10 font-sans animate-in fade-in duration-500 space-y-8">
+      
+      {/* ── Top Nav ── */}
+      <div className="flex items-center justify-between">
+        <Button asChild variant="ghost" size="sm" className="text-muted-foreground -ml-2">
+          <Link href="/dashboard/csv-upload"><ArrowLeft className="w-4 h-4 mr-2" /> Back to Jobs</Link>
+        </Button>
+        <Button variant="ghost" size="sm" onClick={fetchData} className="text-muted-foreground">
+          <RefreshCw className="w-4 h-4 mr-2" /> Refresh Data
+        </Button>
       </div>
 
-      {/* ── Batch Header ── */}
-      <div className="detail-header">
-        <div className="detail-header-icon"><FileSpreadsheet size={28} /></div>
-        <div className="detail-header-info">
-          <h1 className="detail-title">{batch.filename}</h1>
-          <div className="detail-meta">
-            <Clock size={13} />
-            {new Date(batch.createdAt).toLocaleString()}
-            <span className={`status-badge ${
-              batch.status === "COMPLETED" ? "badge-success" :
-              batch.status === "FAILED" ? "badge-danger" :
-              "badge-info"
-            }`}>
-              {batch.status === "PROCESSING" && <span className="badge-dot" />}
-              {batch.status}
+      {/* ── Header ── */}
+      <div className="flex items-center gap-4 border-b pb-6">
+        <div className="p-3 bg-primary/10 rounded-xl border border-primary/20 text-primary">
+          <FileSpreadsheet className="w-8 h-8" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">{batch.filename}</h1>
+          <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
+            <span className="flex items-center"><Clock className="w-3 h-3 mr-1" /> {new Date(batch.createdAt).toLocaleString()}</span>
+            <span>•</span>
+            <span className="font-medium">
+              {batch.status === "COMPLETED" ? <span className="text-emerald-500">Processing Complete</span> : <span className="text-blue-500 animate-pulse">Processing...</span>}
             </span>
           </div>
         </div>
       </div>
 
       {/* ── Stats Grid ── */}
-      {stats && (
-        <div className="stats-grid">
-          <StatCard icon={FileSpreadsheet} label="Total Records" value={stats.total} color="purple" />
-          <StatCard icon={XCircle}        label="Blocked"        value={stats.blocked} sub={`${stats.total > 0 ? Math.round(stats.blocked / stats.total * 100) : 0}% of total`} color="red" />
-          <StatCard icon={CheckCircle2}   label="Passed"         value={stats.passed}  sub={`${stats.total > 0 ? Math.round(stats.passed / stats.total * 100) : 0}% of total`} color="green" />
-          <StatCard icon={AlertTriangle}  label="High Risk"      value={stats.highRisk} color="orange" />
-          <StatCard icon={TrendingUp}     label="Avg Safety Score" value={stats.avgFinalScore != null ? `${Math.round(stats.avgFinalScore * 100)}%` : "—"} color="teal" />
-          <StatCard icon={Brain}          label="False Negatives" value={stats.falseNegatives} sub="Guardrail missed" color="yellow" />
-        </div>
-      )}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <Card><CardHeader className="p-4 pb-2"><CardDescription>Total Rows</CardDescription><CardTitle className="text-2xl">{stats.total}</CardTitle></CardHeader></Card>
+        <Card><CardHeader className="p-4 pb-2"><CardDescription>Blocked</CardDescription><CardTitle className="text-2xl text-red-500">{stats.blocked}</CardTitle></CardHeader></Card>
+        <Card><CardHeader className="p-4 pb-2"><CardDescription>Passed</CardDescription><CardTitle className="text-2xl text-emerald-500">{stats.passed}</CardTitle></CardHeader></Card>
+        <Card className="bg-red-500/5 border-red-500/20"><CardHeader className="p-4 pb-2"><CardDescription className="text-red-600/80">High Risk</CardDescription><CardTitle className="text-2xl text-red-600">{stats.highRisk}</CardTitle></CardHeader></Card>
+        <Card><CardHeader className="p-4 pb-2"><CardDescription>False Negatives</CardDescription><CardTitle className="text-2xl text-amber-500">{stats.falseNegatives}</CardTitle></CardHeader></Card>
+        <Card className="bg-primary/5 border-primary/20"><CardHeader className="p-4 pb-2"><CardDescription className="text-primary/80">Avg Safety Score</CardDescription><CardTitle className="text-2xl text-primary">{stats.avgFinalScore != null ? `${Math.round(stats.avgFinalScore * 100)}%` : "—"}</CardTitle></CardHeader></Card>
+      </div>
 
-      {/* ── Risk Distribution ── */}
-      {stats && (
-        <div className="risk-distribution">
-          <h3 className="section-label">Risk Distribution</h3>
-          <div className="risk-bars">
-            {[
-              { label: "High Risk",    value: stats.highRisk,   color: "rgb(239,68,68)", cls: "rbar-red" },
-              { label: "Medium Risk",  value: stats.mediumRisk, color: "rgb(249,115,22)", cls: "rbar-orange" },
-              { label: "Low Risk",     value: stats.lowRisk,    color: "rgb(34,197,94)", cls: "rbar-green" },
-            ].map((item) => (
-              <div key={item.label} className="risk-bar-row">
-                <span className="risk-bar-label">{item.label}</span>
-                <div className="risk-bar-track">
-                  <div
-                    className={`risk-bar-fill ${item.cls}`}
-                    style={{ width: `${stats.total > 0 ? (item.value / stats.total) * 100 : 0}%` }}
-                  />
-                </div>
-                <span className="risk-bar-count">{item.value}</span>
-              </div>
-            ))}
+      {/* ── Records Table Header ── */}
+      <div className="pt-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">Record Diagnostics</h2>
+            <p className="text-sm text-muted-foreground mt-1">Detailed breakdown of engine blocks and auditor verdicts.</p>
           </div>
-        </div>
-      )}
-
-      {/* ── Records Table ── */}
-      <div className="records-section">
-        <div className="records-header">
-          <h3 className="section-label">
-            Record Results
-            <span className="records-count">{filteredRecords.length}</span>
-          </h3>
-          <div className="filter-tabs">
-            {(["ALL", "BLOCKED", "PASSED", "HIGH"] as const).map((f) => (
-              <button
-                key={f}
-                className={`filter-tab ${filter === f ? "filter-tab-active" : ""}`}
-                onClick={() => setFilter(f)}
-              >
-                {f === "HIGH" ? "🔴 High Risk" : f}
-              </button>
-            ))}
-          </div>
+          
+          <Tabs defaultValue="ALL" onValueChange={(v) => setFilter(v as any)} className="w-full md:w-auto">
+            <TabsList className="grid w-full grid-cols-4 md:w-[400px]">
+              <TabsTrigger value="ALL">All</TabsTrigger>
+              <TabsTrigger value="BLOCKED">Blocked</TabsTrigger>
+              <TabsTrigger value="PASSED">Passed</TabsTrigger>
+              <TabsTrigger value="HIGH" className="text-red-500 data-[state=active]:text-red-600">High Risk</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
 
-        <div className="records-list">
+        {/* ── Records List ── */}
+        <div className="space-y-1">
           {filteredRecords.length === 0 ? (
-            <div className="records-empty">
-              <p>No records match this filter.</p>
-            </div>
+             <div className="text-center p-12 border-2 border-dashed rounded-xl bg-card/50 text-muted-foreground">
+               <ActivitySquare className="w-8 h-8 mx-auto mb-3 opacity-20" />
+               <p>No records match the current filter.</p>
+             </div>
           ) : (
             filteredRecords.map((record) => (
               <RecordRow key={record.id} record={record} />

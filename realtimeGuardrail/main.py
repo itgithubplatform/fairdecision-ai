@@ -24,7 +24,6 @@ DEBERTA_ONNX_PATH = "./models/deberta_onnx"
 print("Loading MiniLM Bi-Encoder for FAISS Retrieval...")
 retriever = SentenceTransformer("all-MiniLM-L6-v2", device="cuda" if torch.cuda.is_available() else "cpu")
 
-# --- MODEL COMPILATION & LOADING ---
 roberta_id = "unitary/unbiased-toxic-roberta"
 if not os.path.exists(ROBERTA_QUANTIZED_PATH):
     print("Compiling Toxicity Classifier to ONNX...")
@@ -72,7 +71,6 @@ deberta = pipeline(
 
 print("All Models Loaded.")
 
-# --- THE STATELESS CACHE ENGINE ---
 @lru_cache(maxsize=10000)
 def get_single_embedding(text: str):
     return retriever.encode([text], convert_to_numpy=True)[0]
@@ -80,10 +78,7 @@ def get_single_embedding(text: str):
 def get_rule_embeddings(rules: List[str]) -> np.ndarray:
     vectors = [get_single_embedding(rule) for rule in rules]
     return np.vstack(vectors)
-
-# --- RESPONSE BUILDER ---
 def build_response(all_threats, top_threat, semantic_rule, semantic_score, t1, t2=0, t3=0):
-    # Filter out noise (threats under 10% probability) to keep payload tight
     significant_threats = [
         {"label": t["label"], "score": round(float(t["score"]), 4)} 
         for t in all_threats if t["score"] > 0.1
@@ -107,7 +102,6 @@ def build_response(all_threats, top_threat, semantic_rule, semantic_score, t1, t
         }
     }
 
-# --- CONSTANTS ---
 DEFAULT_COMPLIANCE_RULES = [
     "Gender or sex discrimination",
     "Age discrimination or graduation year filtering",
@@ -130,17 +124,14 @@ _ = deberta("Warmup text", candidate_labels=["Warmup label"])
 _ = retriever.encode(["Warmup text"])
 print("Server Ready!")
 
-# --- DATA MODELS ---
 class EvaluationRequest(BaseModel):
     domain: str = "General"
     text: str
-    # action: Literal["flag", "block"] <-- DELETED. Python is blind to UI logic.
     custom_rules: Optional[List[str]] = None 
 
 class WarmupRequest(BaseModel):
     new_rules: List[str]
 
-# --- ENDPOINTS ---
 
 @app.post("/warmup")
 def warmup_cache(req: WarmupRequest):
@@ -152,9 +143,6 @@ def evaluate_text(req: EvaluationRequest):
     augmented_prompt = f"{req.domain}: {req.text}"
     active_rules = req.custom_rules if req.custom_rules and len(req.custom_rules) > 0 else DEFAULT_COMPLIANCE_RULES
 
-    # ==========================================
-    # STAGE 1: FAST TOXICITY CHECK
-    # ==========================================
     start_t1 = time.perf_counter()
     roberta_res = roberta(req.text)[0]
     t1_ms = (time.perf_counter() - start_t1) * 1000
@@ -162,13 +150,8 @@ def evaluate_text(req: EvaluationRequest):
     actual_threats = [item for item in roberta_res if item['label'] in THREAT_LABELS]
     top_threat = max(actual_threats, key=lambda x: x['score']) if actual_threats else {'label': 'none', 'score': 0.0}
 
-    # SHORT CIRCUIT: If it's blatantly toxic, save GPU cycles. Next.js will block it anyway.
     if top_threat['score'] >= 0.85:
         return build_response(actual_threats, top_threat, "none", 0.0, t1_ms)
-
-    # ==========================================
-    # STAGE 2: EPHEMERAL FAISS RETRIEVAL
-    # ==========================================
     start_t2 = time.perf_counter()
     
     rule_matrix = get_rule_embeddings(active_rules)
@@ -181,18 +164,14 @@ def evaluate_text(req: EvaluationRequest):
     prompt_emb = retriever.encode([augmented_prompt], convert_to_numpy=True)
     faiss.normalize_L2(prompt_emb)
 
-    k_rules = min(4, len(active_rules))
+    k_rules = min(1, len(active_rules))
     distances, indices = index.search(prompt_emb, k_rules)
     candidate_rules = [active_rules[idx] for idx in indices[0]]
 
     t2_ms = (time.perf_counter() - start_t2) * 1000
 
-    # ==========================================
-    # STAGE 3: DEEP EVALUATION (DeBERTa)
-    # ==========================================
     start_t3 = time.perf_counter()
     
-    # We include SAFE_RULES here so DeBERTa can rank them against the candidate rules
     evaluation_labels = candidate_rules + SAFE_RULES
     
     deberta_res = deberta(
@@ -206,5 +185,4 @@ def evaluate_text(req: EvaluationRequest):
     top_rule = deberta_res['labels'][0]
     top_score = deberta_res['scores'][0]
 
-    # Return pure math. Next.js handles the "safe rule" override.
     return build_response(actual_threats, top_threat, top_rule, top_score, t1_ms, t2_ms, t3_ms)

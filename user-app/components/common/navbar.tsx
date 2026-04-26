@@ -29,10 +29,10 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 const dashboardLinks = [
-  { name: 'Dashboard',  href: '/dashboard',           icon: LayoutDashboard },
-  { name: 'API Keys',   href: '/dashboard/keys',       icon: Key },
   { name: 'Analytics',  href: '/dashboard/analytics',  icon: Activity },
   { name: 'Playground', href: '/dashboard/playground', icon: Activity },
+  { name: 'Policies',  href: '/dashboard/guardrails',           icon: LayoutDashboard },
+  { name: 'API Keys',   href: '/dashboard/keys',       icon: Key },
   { name: 'Settings',   href: '/dashboard/settings',   icon: Settings },
 ]
 
@@ -70,7 +70,7 @@ export default function Navbar() {
                     <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
                       <ShieldCheck className="w-5 h-5 text-primary-foreground" />
                     </div>
-                    <span className="text-xl font-semibold tracking-tight text-foreground">FairDecision</span>
+                    <span className="text-xl font-semibold tracking-tight text-foreground">Aegis AI</span>
                   </SheetTitle>
                 </SheetHeader>
                 <div className="py-4 px-3 space-y-1">
@@ -117,6 +117,7 @@ export default function Navbar() {
           >
             <ShieldCheck className="w-5 h-5 text-primary-foreground" />
           </motion.div>
+          <strong>Aegis AI</strong>
         </Link>
 
         {/* Desktop Nav Links — only when authenticated */}

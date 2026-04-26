@@ -22,7 +22,6 @@ export function CreateRuleDialog({ onSave }: CreateRuleDialogProps) {
 
   const handleSave = async () => {
     await onSave(newRuleText, newRuleCategory)
-    // Reset all states on close
     setNewRuleText('')
     setNewRuleCategory('')
     setAiPrompt('')
@@ -56,7 +55,7 @@ export function CreateRuleDialog({ onSave }: CreateRuleDialogProps) {
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button className="h-9 px-4 text-xs font-medium tracking-wide shadow-sm">
-          <Plus className="w-3.5 h-3.5 mr-2" /> Create Guardrail
+          <Plus className="w-3.5 h-3.5 mr-2" /> Create Policy
         </Button>
       </DialogTrigger>
       

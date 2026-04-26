@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Shield, Loader2, AlertCircle, RefreshCcw, Filter, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RuleRow, type CustomRule } from '@/components/guardrails/RuleRow'
 import { CreateRuleDialog } from '@/components/guardrails/CreateRuleDialog'
 import GuardRailsNotFound from '@/components/guardrails/NotFound'
@@ -141,7 +140,7 @@ export default function GuardrailsPage() {
           <p className="text-[13px]">Syncing workspace configuration...</p>
         </div>
       ) : (
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full block">
           
           {/* THE UNIFIED CONTROL BAR */}
           <TabsAndSearch
@@ -155,15 +154,15 @@ export default function GuardrailsPage() {
           />
 
           {/* TAB 1: SYSTEM TEMPLATES */}
-          <TabsContent value="system" className="space-y-4 outline-none mt-0">
-            <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
+          <TabsContent value="system" className="w-full space-y-4 outline-none mt-0">
+            <div className="w-full border border-border rounded-xl bg-card overflow-hidden shadow-sm">
               {filteredSystemRules.length === 0 ? (
-                <div className="py-16 flex flex-col items-center text-center text-muted-foreground">
+                <div className="py-16 flex flex-col items-center text-center text-muted-foreground w-full">
                   <FileText className="w-8 h-8 mb-3 opacity-20" />
                   <p className="text-[13px]">No templates match your search criteria.</p>
                 </div>
               ) : (
-                <div className="flex flex-col">
+                <div className="w-full flex flex-col">
                   {filteredSystemRules.map(rule => (
                     <RuleRow key={rule.id} rule={rule} onToggle={toggleRule} onDelete={deleteRule} />
                   ))}
@@ -173,12 +172,12 @@ export default function GuardrailsPage() {
           </TabsContent>
 
           {/* TAB 2: CUSTOM RULES */}
-          <TabsContent value="custom" className="space-y-4 outline-none mt-0">
-            <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm min-h-[300px]">
+          <TabsContent value="custom" className="w-full space-y-4 outline-none mt-0">
+            <div className="w-full border border-border rounded-xl bg-card overflow-hidden shadow-sm min-h-[300px]">
               {filteredCustomRules.length === 0 ? (
                <GuardRailsNotFound />
               ) : (
-                <div className="flex flex-col">
+                <div className="w-full flex flex-col">
                   {filteredCustomRules.map(rule => (
                     <RuleRow key={rule.id} rule={rule} onToggle={toggleRule} onDelete={deleteRule} />
                   ))}

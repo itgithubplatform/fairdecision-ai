@@ -94,6 +94,7 @@ model CustomRule {
   ruleText    String   @db.Text
   category    String   @default("General Compliance")
   isActive    Boolean  @default(true)
+  sourcePrompt String?   @db.Text
   isSystem    Boolean  @default(false)
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)

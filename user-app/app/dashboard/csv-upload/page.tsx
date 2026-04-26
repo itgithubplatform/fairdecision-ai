@@ -5,8 +5,15 @@ import Link from "next/link";
 import {
   UploadCloud, CheckCircle2, AlertCircle, Loader2,
   FileSpreadsheet, Shield, Brain,
-  Clock, Zap, Eye, RefreshCw, TrendingUp
+  Clock, Zap, Eye, RefreshCw, TrendingUp,
+  ArrowRight, X,
+  Download
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface Batch {
   id: string;
@@ -16,30 +23,6 @@ interface Batch {
   processed: number;
   auditorCompleted: number;
   totalRows: number;
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    COMPLETED: "badge-success",
-    FAILED: "badge-danger",
-    PROCESSING: "badge-info",
-    PENDING: "badge-warning",
-  };
-  return (
-    <span className={`status-badge ${map[status] ?? "badge-warning"}`}>
-      {status === "PROCESSING" && <span className="badge-dot" />}
-      {status}
-    </span>
-  );
-}
-
-function ProgressBar({ value, max, variant = "primary" }: { value: number; max: number; variant?: string }) {
-  const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
-  return (
-    <div className="prog-track">
-      <div className={`prog-fill prog-${variant}`} style={{ width: `${pct}%` }} />
-    </div>
-  );
 }
 
 export default function CsvUploadDashboard() {
@@ -101,13 +84,18 @@ export default function CsvUploadDashboard() {
     setLoading(true);
     const formData = new FormData();
     formData.append("file", file);
+    
     try {
       const res = await fetch("/api/upload-csv", { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Upload failed");
+      
       setUploadStatus("success");
       fetchBatches();
-      setTimeout(() => { setFile(null); setUploadStatus("idle"); }, 4000);
+      setTimeout(() => { 
+        setFile(null); 
+        setUploadStatus("idle"); 
+      }, 4000);
     } catch (err: unknown) {
       setUploadStatus("error");
       setErrorMessage(err instanceof Error ? err.message : "Unexpected error occurred.");
@@ -116,146 +104,208 @@ export default function CsvUploadDashboard() {
     }
   };
 
+  const getStatusBadge = (status: string) => {
+    switch(status) {
+      case "COMPLETED": return <Badge variant="secondary" className="bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25">Completed</Badge>;
+      case "PROCESSING": return <Badge variant="secondary" className="bg-blue-500/15 text-blue-600 hover:bg-blue-500/25 animate-pulse">Processing</Badge>;
+      case "FAILED": return <Badge variant="destructive">Failed</Badge>;
+      default: return <Badge variant="outline" className="text-amber-500 border-amber-500">Pending</Badge>;
+    }
+  };
+
   return (
-    <div className="csv-page">
-      {/* ── Header ── */}
-      <div className="csv-header">
-        <div className="csv-header-icon">
-          <Shield size={28} />
-        </div>
-        <div>
-          <h1 className="csv-title">Batch Diagnostics Engine</h1>
-          <p className="csv-subtitle">
-            Upload datasets for sequential bias screening, toxicity analysis, and AI-powered auditing.
-          </p>
-        </div>
+    <div className="max-w-[1200px] mx-auto p-6 md:p-10 font-sans animate-in fade-in duration-500">
+<header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+  <div className="space-y-1">
+    <div className="flex items-center gap-2.5 mb-2">
+      <div className="p-2 bg-primary/10 rounded-lg border border-primary/20">
+        <Shield className="w-5 h-5 text-primary" />
       </div>
+      <h1 className="text-2xl font-semibold tracking-tight text-foreground">Batch Diagnostics Engine</h1>
+    </div>
+    <p className="text-[14px] text-muted-foreground max-w-xl">
+      Upload datasets for sequential bias screening, toxicity analysis, and AI-powered auditing.
+    </p>
+  </div>
+  
+  {/* NEW: Download Button */}
+  <div className="shrink-0">
+    <Button asChild variant="outline" className="h-9 text-xs font-medium bg-background shadow-sm hover:bg-accent transition-all">
+      <a href="/test_dataset.csv" download="test_dataset.csv">
+        <Download className="w-3.5 h-3.5 mr-2" />
+        Download Sample CSV
+      </a>
+    </Button>
+  </div>
+</header>
 
       {/* ── Upload Zone ── */}
-      <div
-        className={`upload-zone ${isDragging ? "upload-zone-active" : ""} ${file ? "upload-zone-filled" : ""}`}
+      <Card 
+        className={`mb-10 border-2 border-dashed transition-all duration-200 ${
+          isDragging ? "border-primary bg-primary/5 scale-[1.01]" : "border-border bg-card hover:bg-muted/30"
+        }`}
         onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
       >
-        <input
-          type="file"
-          accept=".csv"
-          className="hidden"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-        />
+        <CardContent className="p-10 flex flex-col items-center justify-center min-h-[300px]">
+          <input
+            type="file"
+            accept=".csv"
+            className="hidden"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+          />
 
-        {!file ? (
-          <div className="upload-empty">
-            <div className="upload-cloud-icon">
-              <UploadCloud size={44} />
+          {!file ? (
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="p-4 bg-muted rounded-full">
+                <UploadCloud className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-medium">Drop your CSV dataset here</h3>
+                <p className="text-sm text-muted-foreground">Supports .csv files up to 5MB.</p>
+              </div>
+              <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                Browse Files
+              </Button>
             </div>
-            <h3 className="upload-heading">Drop your CSV here</h3>
-            <p className="upload-hint">Supports .csv files up to 5MB</p>
-            <button className="btn-primary" onClick={() => fileInputRef.current?.click()}>
-              Browse Files
-            </button>
-          </div>
-        ) : (
-          <div className="upload-filled">
-            <div className="file-card">
-              <div className="file-card-icon">
-                <FileSpreadsheet size={32} />
+          ) : (
+            <div className="w-full max-w-md space-y-6">
+              
+              <div className="flex items-center justify-between p-4 border rounded-xl bg-background shadow-sm">
+                <div className="flex items-center gap-4">
+                  <div className="p-2 bg-emerald-500/10 rounded-lg">
+                    <FileSpreadsheet className="w-6 h-6 text-emerald-500" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm truncate max-w-[200px]">{file.name}</p>
+                    <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</p>
+                  </div>
+                </div>
+                {uploadStatus === "idle" && (
+                  <Button variant="ghost" size="icon" onClick={() => setFile(null)} className="text-muted-foreground hover:text-destructive">
+                    <X className="w-4 h-4" />
+                  </Button>
+                )}
               </div>
-              <div className="file-card-info">
-                <p className="file-name">{file.name}</p>
-                <p className="file-size">{(file.size / 1024).toFixed(1)} KB · CSV</p>
-              </div>
-            </div>
 
-            {uploadStatus === "error" && (
-              <div className="alert alert-error">
-                <AlertCircle size={16} />
-                <span>{errorMessage}</span>
-              </div>
-            )}
-            {uploadStatus === "success" && (
-              <div className="alert alert-success">
-                <CheckCircle2 size={16} />
-                <span>Upload successful! Processing pipeline started.</span>
-              </div>
-            )}
+              {uploadStatus === "error" && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Error</AlertTitle>
+                  <AlertDescription>{errorMessage}</AlertDescription>
+                </Alert>
+              )}
+              
+              {uploadStatus === "success" && (
+                <Alert className="border-emerald-500/50 bg-emerald-500/10 text-emerald-600">
+                  <CheckCircle2 className="h-4 w-4 stroke-emerald-600" />
+                  <AlertTitle>Success</AlertTitle>
+                  <AlertDescription>Upload successful! Processing pipeline started.</AlertDescription>
+                </Alert>
+              )}
 
-            <div className="upload-actions">
-              <button
-                className="btn-primary btn-launch"
+              <Button 
+                className="w-full" 
+                size="lg"
                 onClick={handleUpload}
                 disabled={loading || uploadStatus === "success"}
               >
-                {loading
-                  ? <><Loader2 className="spin" size={18} /> Processing…</>
-                  : <><Zap size={18} /> Launch Pipeline</>
-                }
-              </button>
+                {loading ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Ingesting Data...</>
+                ) : (
+                  <><Zap className="w-4 h-4 mr-2" /> Launch AI Pipeline</>
+                )}
+              </Button>
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Recent Batches ── */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-medium flex items-center gap-2 text-foreground">
+            <TrendingUp className="w-5 h-5 text-muted-foreground" />
+            Recent Pipeline Jobs
+          </h2>
+          <Button variant="ghost" size="sm" onClick={fetchBatches} className="h-8 px-2 text-muted-foreground">
+            <RefreshCw className="w-4 h-4 mr-2" /> Refresh
+          </Button>
+        </div>
+
+        {batches.length === 0 ? (
+          /* THE EMPTY STATE */
+          <div className="flex flex-col items-center justify-center p-12 text-center border-2 border-dashed rounded-xl bg-card/50">
+            <div className="p-4 bg-muted/50 rounded-full mb-4">
+              <FileSpreadsheet className="w-8 h-8 text-muted-foreground opacity-50" />
+            </div>
+            <h3 className="text-base font-medium text-foreground">No pipeline jobs yet</h3>
+            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+              Upload a CSV dataset above to run your first background audit and toxicity screen.
+            </p>
+          </div>
+        ) : (
+          /* THE POPULATED GRID */
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {batches.map((batch) => (
+              <Card key={batch.id} className="shadow-sm">
+                <CardHeader className="pb-3 border-b border-border/50">
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="space-y-1 overflow-hidden">
+                      <CardTitle className="text-sm font-medium truncate" title={batch.filename}>
+                        {batch.filename}
+                      </CardTitle>
+                      <CardDescription className="flex items-center text-[11px]">
+                        <Clock className="w-3 h-3 mr-1" />
+                        {new Date(batch.createdAt).toLocaleDateString("en-IN", {
+                          month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
+                        })}
+                      </CardDescription>
+                    </div>
+                    {getStatusBadge(batch.status)}
+                  </div>
+                </CardHeader>
+                
+                <CardContent className="pt-4 space-y-4">
+                  {/* Guardrail Progress */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                      <span className="flex items-center gap-1.5"><Shield className="w-3 h-3"/> Fast Engine</span>
+                      <span>{batch.processed} / {batch.totalRows}</span>
+                    </div>
+                    <Progress value={batch.totalRows > 0 ? (batch.processed / batch.totalRows) * 100 : 0} className="h-1.5" />
+                  </div>
+
+                  {/* Auditor Progress */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                      <span className="flex items-center gap-1.5"><Brain className="w-3 h-3"/> AI Auditor</span>
+                      <span>{batch.auditorCompleted} / {batch.totalRows}</span>
+                    </div>
+                    <Progress 
+                      value={batch.totalRows > 0 ? (batch.auditorCompleted / batch.totalRows) * 100 : 0} 
+                      className="h-1.5 [&>div]:bg-indigo-500" 
+                    />
+                  </div>
+                </CardContent>
+                
+                {batch.status === "COMPLETED" && (
+                  <div className="p-3 border-t bg-muted/20">
+                    <Button asChild variant="ghost" className="w-full h-8 text-xs group justify-between">
+                      <Link href={`/dashboard/csv-upload/${batch.id}`}>
+                        View Full Results
+                        <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-1" />
+                      </Link>
+                    </Button>
+                  </div>
+                )}
+              </Card>
+            ))}
           </div>
         )}
       </div>
-
-      {/* ── Recent Batches ── */}
-      {batches.length > 0 && (
-        <div className="batches-section">
-          <div className="section-header">
-            <div className="section-title">
-              <TrendingUp size={20} />
-              <span>Recent Batch Jobs</span>
-            </div>
-            <button className="btn-icon" onClick={fetchBatches} title="Refresh">
-              <RefreshCw size={16} />
-            </button>
-          </div>
-
-          <div className="batch-grid">
-            {batches.map((batch) => (
-              <div key={batch.id} className="batch-card">
-                <div className="batch-card-top">
-                  <div className="batch-info">
-                    <p className="batch-filename">{batch.filename}</p>
-                    <p className="batch-meta">
-                      <Clock size={11} />
-                      {new Date(batch.createdAt).toLocaleDateString("en-IN", {
-                        day: "numeric", month: "short", year: "numeric",
-                        hour: "2-digit", minute: "2-digit"
-                      })}
-                    </p>
-                  </div>
-                  <StatusBadge status={batch.status} />
-                </div>
-
-                <div className="batch-progress-row">
-                  <div className="batch-progress-col">
-                    <div className="batch-progress-label">
-                      <Shield size={11} /> Guardrail
-                      <span className="ml-auto">{batch.processed}/{batch.totalRows}</span>
-                    </div>
-                    <ProgressBar value={batch.processed} max={batch.totalRows} variant="primary" />
-                  </div>
-                  <div className="batch-progress-col">
-                    <div className="batch-progress-label">
-                      <Brain size={11} /> Auditor
-                      <span className="ml-auto">{batch.auditorCompleted}/{batch.totalRows}</span>
-                    </div>
-                    <ProgressBar value={batch.auditorCompleted} max={batch.totalRows} variant="accent" />
-                  </div>
-                </div>
-
-                {batch.status === "COMPLETED" && (
-                  <Link href={`/dashboard/csv-upload/${batch.id}`} className="batch-results-link">
-                    <Eye size={14} /> View Full Results
-                    <ArrowRight size={14} />
-                  </Link>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
