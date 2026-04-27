@@ -125,3 +125,86 @@ Aegis AI follows a layered architecture:
 ---
 
 ## 🔄 Process Flow
+
+Aegis AI ensures fairness across the entire AI lifecycle by operating at multiple stages:
+
+### 🧾 1. Pre-Training (Dataset Level)
+Dataset Upload  
+↓  
+Bias Audit Engine  
+↓  
+Cleaned Data → AI Model  
+
+---
+
+### ⚡ 2. Real-Time Protection (Prompt Level)
+User Prompt  
+↓  
+Real-Time Guardrails  
+↓  
+AI Model  
+
+---
+
+### 🔍 3. Post-Processing (Response Level)
+AI Model  
+↓  
+Response Auditor  
+↓  
+Safe Output  
+
+---
+
+### 🔁 4. Continuous Improvement (Self-Healing Loop)
+Logs & Feedback  
+↓  
+Self-Healing Engine  
+↓  
+Updated Rules  
+↓  
+Integrated back into the system  
+
+---
+
+## 🎯 Use Cases
+
+- AI-powered hiring platforms  
+- Fintech & loan approval systems  
+- Healthcare AI assistants  
+- LLM-based applications (chatbots, copilots)  
+- Enterprise compliance monitoring  
+
+---
+
+## 🔐 Why Aegis AI?
+
+- ✅ Full lifecycle AI protection  
+- ⚡ Real-time semantic guardrails  
+- 🔁 Self-healing adaptive system  
+- 🧠 AI-driven rule generation  
+- 📊 Developer-friendly API  
+
+---
+
+## 🏁 Vision
+
+To make AI systems **fair, transparent, and accountable** by embedding safety at every stage of the AI lifecycle.
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions!  
+Feel free to fork the repo, raise issues, and submit pull requests.
+
+---
+
+## 📄 License
+
+MIT License
+
+---
+
+## 👨‍💻 Team
+
+Built with ❤️ for building responsible AI systems.
