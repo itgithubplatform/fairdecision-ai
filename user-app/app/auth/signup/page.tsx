@@ -18,7 +18,7 @@ export default function SignUpPage() {
     setIsLoading(provider)
     setError('')
     try {
-      await signIn(provider, { callbackUrl: '/dashboard' })
+      await signIn(provider, { callbackUrl: '/dashboard/playground' })
     } catch (error) {
       setError(`Failed to create account with ${provider === 'google' ? 'Google' : 'GitHub'}`)
       setIsLoading(null)
@@ -94,7 +94,7 @@ export default function SignUpPage() {
             <div className="space-y-2.5">
               {
                 [
-                  "Real-time bias detection (<100ms)",
+                  "Real-time bias detection (<SubSec)",
                   "Enterprise compliance (EEOC & Fair Lending)",
                   "Self-improving AI via continuous auditing"
                 ].map((e, i) =>

@@ -4,24 +4,17 @@ import crypto from 'crypto'
 import { prisma } from '@/prisma'
 import { hashApiKey } from '@/lib/hashApiKey'
 import { revalidateTag } from 'next/cache' 
+import { authOptions } from '@/lib/auth'
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession()
-    if (!session?.user?.email) {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    })
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found in database" }, { status: 404 })
-    }
-
     const oldKeys = await prisma.apiKey.findMany({
-        where: { userId: user.id },
+        where: { userId: session.user.id },
         select: { keyHash: true }
     })
 
@@ -30,12 +23,12 @@ export async function POST(req: Request) {
 
     await prisma.$transaction([
       prisma.apiKey.deleteMany({
-        where: { userId: user.id }
+        where: { userId: session.user.id }
       }),
       prisma.apiKey.create({
         data: {
           keyHash: hashedKey,
-          userId: user.id,
+          userId: session.user.id,
           isActive: true
         }
       })
@@ -51,4 +44,16 @@ export async function POST(req: Request) {
     console.error("API Key Generation Error:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
+}
+export async function GET(req: Request) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const apiKeys = await prisma.apiKey.findMany({
+    where: { userId: session.user.id }
+  })
+
+  return NextResponse.json({ apiKeys }, { status: 200 })
 }

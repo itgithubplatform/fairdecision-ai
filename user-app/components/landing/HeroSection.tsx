@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Play, LayoutDashboard, ShieldAlert, Activity, ArrowRight, FileSpreadsheet } from "lucide-react"
+import { useRouter } from "nextjs-toploader/app"
 
 export default function HeroSection() {
+  const router = useRouter()
   return (
     <section className="relative w-full pt-32 pb-20 md:pt-40 md:pb-32 overflow-hidden">
       {/* Premium Background: Subtle grid + glow */}
@@ -46,11 +48,11 @@ export default function HeroSection() {
               transition={{ duration: 0.5, delay: 0.3 }}
               className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4"
             >
-              <Button size="lg" className="w-full sm:w-auto gap-2 group h-12 px-8 shadow-[0_0_20px_rgba(var(--primary),0.3)] hover:shadow-[0_0_25px_rgba(var(--primary),0.5)] transition-all">
+              <Button onClick={()=>router.push("/dashboard/playground")} size="lg" className="w-full sm:w-auto gap-2 group h-12 px-8 shadow-[0_0_20px_rgba(var(--primary),0.3)] hover:shadow-[0_0_25px_rgba(var(--primary),0.5)] transition-all">
                 <Play className="w-4 h-4 group-hover:scale-110 transition-transform" />
                 Try Playground
               </Button>
-              <Button size="lg" variant="outline" className="w-full sm:w-auto gap-2 h-12 px-8 bg-background/50 backdrop-blur-sm border-border hover:bg-muted/50">
+              <Button onClick={()=>router.push("/dashboard/analytics")} size="lg" variant="outline" className="w-full sm:w-auto gap-2 h-12 px-8 bg-background/50 backdrop-blur-sm border-border hover:bg-muted/50">
                 <LayoutDashboard className="w-4 h-4" />
                 View Dashboard
               </Button>

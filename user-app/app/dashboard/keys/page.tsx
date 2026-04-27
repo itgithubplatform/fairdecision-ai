@@ -8,13 +8,18 @@ import {
   Terminal, Eye, EyeOff, Info, ArrowRight, Loader2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useRouter } from 'nextjs-toploader/app'
+import { useSession } from 'next-auth/react'
+import Spinner from '@/components/ui/spinner'
 
 type Language = 'curl' | 'ts' | 'python' | 'go' | 'java'
 
 export default function ApiKeysPage() {
   const [apiKey, setApiKey] = useState<string | null>(null) 
   const [hasActiveKey, setHasActiveKey] = useState(false)  
-  const [isChecking, setIsChecking] = useState(true)        
+  const [isChecking, setIsChecking] = useState(true)   
+  const router = useRouter()
+  const session = useSession()     
   
   const [isGenerating, setIsGenerating] = useState(false)
   const [copiedKey, setCopiedKey] = useState(false)
@@ -30,10 +35,12 @@ export default function ApiKeysPage() {
         const res = await fetch('/api/keys')
         if (res.ok) {
           const data = await res.json()
-          setHasActiveKey(data.hasKey)
+          console.log(data?.apiKeys[0]?.keyHash);
+          
+          setHasActiveKey(!!data.apiKeys[0].keyHash)
         }
       } catch (err) {
-        console.error("Failed to fetch key status")
+        console.error("Failed to fetch key status",err)
       } finally {
         setIsChecking(false)
       }
@@ -77,7 +84,7 @@ export default function ApiKeysPage() {
   const canRevealOrCopy = !!apiKey
 
   const snippets: Record<Language, string> = {
-    curl: `curl -X POST "http://localhost:8000/v1/evaluate" \\
+    curl: `curl -X POST "${process.env.NEXT_PUBLIC_URL}/api/v1/evaluate" \\
   -H "Authorization: Bearer ${displayKey}" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -86,7 +93,7 @@ export default function ApiKeysPage() {
     "action": "block"
   }'`,
     
-    ts: `const response = await fetch('http://localhost:8000/v1/evaluate', {
+    ts: `const response = await fetch('${process.env.NEXT_PUBLIC_URL}/api/v1/evaluate', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer ${displayKey}',
@@ -113,7 +120,7 @@ payload = {
     "action": "block"
 }
 
-response = requests.post("http://localhost:8000/v1/evaluate", headers=headers, json=payload)
+response = requests.post("${process.env.NEXT_PUBLIC_URL}/api/v1/evaluate", headers=headers, json=payload)
 print(response.json())`,
 
     go: `package main
@@ -129,7 +136,7 @@ func main() {
     "policies": ["EEOC", "FairLending"],
     "action": "block"
   }\`)
-  req, _ := http.NewRequest("POST", "http://localhost:8000/v1/evaluate", bytes.NewBuffer(jsonStr))
+  req, _ := http.NewRequest("POST", "${process.env.NEXT_PUBLIC_URL}/api/v1/evaluate", bytes.NewBuffer(jsonStr))
   
   req.Header.Set("Authorization", "Bearer ${displayKey}")
   req.Header.Set("Content-Type", "application/json")
@@ -148,7 +155,7 @@ public class Main {
         String payload = "{\\"prompt\\":\\"We are looking...\\", \\"policies\\":[\\"EEOC\\"]}";
         
         HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create("http://localhost:8000/v1/evaluate"))
+            .uri(URI.create("${process.env.NEXT_PUBLIC_URL}/api/v1/evaluate"))
             .header("Authorization", "Bearer ${displayKey}")
             .header("Content-Type", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(payload))
@@ -158,7 +165,12 @@ public class Main {
     }
 }`
   }
-
+if (session.status==="loading") {
+    return <Spinner/>
+  }
+  if (session.status==="unauthenticated") {
+    return router.push("/auth/signin")
+  }
   return (
     <div className="max-w-5xl mx-auto p-4 md:p-8 font-sans animate-in fade-in duration-500">
       <div className="mb-8 md:mb-10">

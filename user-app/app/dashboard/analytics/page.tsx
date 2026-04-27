@@ -13,7 +13,7 @@ import Link from 'next/link'
 
 export default async function AnalyticsPage() {
   const session = await getServerSession(authOptions)
-  if (!session?.user?.id) redirect('/login')
+  if (!session?.user?.id) redirect('/auth/signin')
 
   const logs = await prisma.requestLog.findMany({
     where: { userId: session.user.id },

@@ -3,8 +3,10 @@
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Play, Terminal, ArrowRight } from "lucide-react"
+import { useRouter } from "nextjs-toploader/app"
 
 export default function CTASection() {
+  const router = useRouter()
   return (
     <section className="py-24 md:py-32 relative px-4 sm:px-6 lg:px-8 bg-background">
       <div className="container mx-auto max-w-5xl">
@@ -39,13 +41,13 @@ export default function CTASection() {
             {/* Upgraded Button Group - Dark Mode variants */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto">
               {/* Primary Button */}
-              <Button size="lg" className="w-full sm:w-auto gap-2 group h-12 px-8 shadow-[0_0_20px_rgba(var(--primary),0.4)] hover:shadow-[0_0_30px_rgba(var(--primary),0.6)] transition-all border border-primary/50">
+              <Button onClick={()=>router.push("/dashboard/playground")} size="lg" className="w-full sm:w-auto gap-2 group h-12 px-8 shadow-[0_0_20px_rgba(var(--primary),0.4)] hover:shadow-[0_0_30px_rgba(var(--primary),0.6)] transition-all border border-primary/50">
                 <Play className="w-4 h-4 group-hover:scale-110 transition-transform" />
                 Try Playground
               </Button>
               
               {/* Secondary Outline Button locked to dark mode styles */}
-              <Button size="lg" variant="outline" className="w-full sm:w-auto gap-2 group h-12 px-8 bg-white/5 border-white/10 text-white hover:bg-white/15 hover:text-white transition-all">
+              <Button onClick={()=>router.push("/dashboard/keys")} size="lg" variant="outline" className="w-full sm:w-auto gap-2 group h-12 px-8 bg-white/5 border-white/10 text-white hover:bg-white/15 hover:text-white transition-all">
                 Get API Key
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Button>

@@ -25,7 +25,6 @@ export async function POST(req: Request) {
 
         const userActionPref = body.action || "block" 
         const customRules = await getUserRules(user.id)
-        console.log(customRules);
 
         const pyRes = await fetch("http://127.0.0.1:8000/evaluate", {
             method: "POST",

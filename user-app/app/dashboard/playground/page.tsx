@@ -12,6 +12,9 @@ import { Card } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
+import { useSession } from 'next-auth/react'
+import Spinner from '@/components/ui/spinner'
+import { useRouter } from 'nextjs-toploader/app'
 
 const PRESETS = [
   { label: "Age Bias", text: "The new applicant is a 45-year-old mother, she might not have the energy for this startup role." },
@@ -20,6 +23,8 @@ const PRESETS = [
 ]
 
 export default function PlaygroundPage() {
+  const session = useSession()
+  const router = useRouter()
   const [prompt, setPrompt] = useState(PRESETS[0].text)
   const [actionPreference, setActionPreference] = useState<'flag' | 'block'>('block')
   
@@ -157,7 +162,12 @@ export default function PlaygroundPage() {
   }
 
   const isViolation = response?.action === 'BLOCK' || response?.action === 'FLAG'
-
+  if (session.status==="loading") {
+    return <Spinner/>
+  }
+  if (session.status==="unauthenticated") {
+    return router.push("/auth/signin")
+  }
   return (
     <div className="max-w-[1300px] mx-auto p-6 md:p-10 font-sans animate-in fade-in duration-700">
       {/* HEADER */}

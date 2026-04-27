@@ -7,7 +7,7 @@ import { useSession, signOut } from "next-auth/react"
 import { motion } from "framer-motion"
 import {
   Menu, ShieldCheck, LayoutDashboard, Key, Activity,
-  Settings, LogOut, User
+  Settings, LogOut, User, Home, FileText, Zap, LogIn
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -28,12 +28,19 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
-const dashboardLinks = [
+// --- LINK CONFIGURATIONS ---
+
+const publicLinks = [
+  { name: 'Home', href: '/', icon: Home },
+  { name: 'Docs', href: '/docs', icon: FileText }
+]
+
+const authLinks = [
   { name: 'Analytics',  href: '/dashboard/analytics',  icon: Activity },
-  { name: 'Playground', href: '/dashboard/playground', icon: Activity },
-  { name: 'Policies',  href: '/dashboard/guardrails',           icon: LayoutDashboard },
+  { name: 'Playground', href: '/dashboard/playground', icon: Zap },
+  { name: 'Policies',   href: '/dashboard/guardrails', icon: ShieldCheck },
   { name: 'API Keys',   href: '/dashboard/keys',       icon: Key },
-  { name: 'Settings',   href: '/dashboard/settings',   icon: Settings },
+  { name: 'Docs',       href: '/docs',                 icon: FileText }
 ]
 
 export default function Navbar() {
@@ -43,7 +50,9 @@ export default function Navbar() {
 
   const isLoading = status === "loading"
   const isAuthenticated = status === "authenticated"
-  const activeLinks = isAuthenticated ? dashboardLinks : []
+  
+  // Dynamically set links based on auth status
+  const activeLinks = isAuthenticated ? authLinks : publicLinks
 
   return (
     <motion.header
@@ -54,46 +63,46 @@ export default function Navbar() {
     >
       <div className="flex h-16 items-center px-4 md:px-8 max-w-[1400px] mx-auto">
 
-        {/* Mobile Menu — only when authenticated */}
-        {isAuthenticated && (
-          <div className="flex items-center md:hidden">
-            <Sheet open={isOpen} onOpenChange={setIsOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="-ml-2 text-muted-foreground hover:text-foreground">
-                  <Menu className="h-5 w-5" />
-                  <span className="sr-only">Toggle menu</span>
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-[280px] sm:w-[320px] p-0 border-r border-border bg-background">
-                <SheetHeader className="p-6 border-b border-border text-left">
-                  <SheetTitle className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
-                      <ShieldCheck className="w-5 h-5 text-primary-foreground" />
-                    </div>
-                    <span className="text-xl font-semibold tracking-tight text-foreground">Aegis AI</span>
-                  </SheetTitle>
-                </SheetHeader>
-                <div className="py-4 px-3 space-y-1">
-                  {activeLinks.map((item) => {
-                    const isActive = pathname === item.href
-                    return (
-                      <Link
-                        key={item.name}
-                        href={item.href}
-                        onClick={() => setIsOpen(false)}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                          isActive
-                            ? "bg-accent text-accent-foreground"
-                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                        }`}
-                      >
-                        <item.icon className={`h-4 w-4 ${isActive ? "text-foreground" : "text-muted-foreground"}`} />
-                        {item.name}
-                      </Link>
-                    )
-                  })}
-                </div>
-                <div className="absolute bottom-0 w-full p-4 border-t border-border bg-muted/30">
+        {/* Mobile Menu — Available for everyone */}
+        <div className="flex items-center md:hidden">
+          <Sheet open={isOpen} onOpenChange={setIsOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="-ml-2 text-muted-foreground hover:text-foreground">
+                <Menu className="h-5 w-5" />
+                <span className="sr-only">Toggle menu</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[280px] sm:w-[320px] p-0 border-r border-border bg-background">
+              <SheetHeader className="p-6 border-b border-border text-left">
+                <SheetTitle className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
+                    <ShieldCheck className="w-5 h-5 text-primary-foreground" />
+                  </div>
+                  <span className="text-xl font-semibold tracking-tight text-foreground">Aegis AI</span>
+                </SheetTitle>
+              </SheetHeader>
+              <div className="py-4 px-3 space-y-1">
+                {activeLinks.map((item) => {
+                  const isActive = pathname === item.href
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      onClick={() => setIsOpen(false)}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                        isActive
+                          ? "bg-accent text-accent-foreground"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      <item.icon className={`h-4 w-4 ${isActive ? "text-foreground" : "text-muted-foreground"}`} />
+                      {item.name}
+                    </Link>
+                  )
+                })}
+              </div>
+              <div className="absolute bottom-0 w-full p-4 border-t border-border bg-muted/30">
+                {isAuthenticated ? (
                   <Button
                     variant="ghost"
                     className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
@@ -102,13 +111,20 @@ export default function Navbar() {
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign Out
                   </Button>
-                </div>
-              </SheetContent>
-            </Sheet>
-          </div>
-        )}
+                ) : (
+                  <Button asChild className="w-full" onClick={() => setIsOpen(false)}>
+                    <Link href="/auth/signin">
+                      <LogIn className="mr-2 h-4 w-4" />
+                      Sign In
+                    </Link>
+                  </Button>
+                )}
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
 
-        {/* Brand — shield icon only, no text */}
+        {/* Brand */}
         <Link href="/" className="flex items-center gap-2.5 ml-4 md:ml-0 group">
           <motion.div
             whileHover={{ scale: 1.05 }}
@@ -120,42 +136,53 @@ export default function Navbar() {
           <strong>Aegis AI</strong>
         </Link>
 
-        {/* Desktop Nav Links — only when authenticated */}
-        {isAuthenticated && (
-          <nav className="hidden md:flex items-center ml-10 space-x-2">
-            {!isLoading && activeLinks.map((item) => {
-              const isActive = pathname === item.href
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className="relative px-3 py-2 rounded-md text-sm font-medium"
-                >
-                  {isActive && (
-                    <motion.div
-                      layoutId="navbar-indicator"
-                      className="absolute inset-0 bg-accent rounded-md z-0"
-                      initial={false}
-                      transition={{ type: "spring", bounce: 0.3, duration: 0.6 }}
-                    />
-                  )}
-                  <span className={`relative z-10 transition-colors duration-200 ${
-                    isActive ? "text-accent-foreground" : "text-muted-foreground hover:text-foreground"
-                  }`}>
-                    {item.name}
-                  </span>
-                </Link>
-              )
-            })}
-          </nav>
-        )}
+        {/* Desktop Nav Links */}
+        <nav className="hidden md:flex items-center ml-10 space-x-2">
+          {!isLoading && activeLinks.map((item) => {
+            const isActive = pathname === item.href
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                className="relative px-3 py-2 rounded-md text-sm font-medium"
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="navbar-indicator"
+                    className="absolute inset-0 bg-accent rounded-md z-0"
+                    initial={false}
+                    transition={{ type: "spring", bounce: 0.3, duration: 0.6 }}
+                  />
+                )}
+                <span className={`relative z-10 transition-colors duration-200 ${
+                  isActive ? "text-accent-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}>
+                  {item.name}
+                </span>
+              </Link>
+            )
+          })}
+        </nav>
 
-        {/* Right Side — avatar only, no Sign In / Get Started */}
+        {/* Right Side — Actions & Avatar */}
         <div className="ml-auto flex items-center gap-2 md:gap-4">
           {isLoading && (
             <div className="h-8 w-8 bg-muted animate-pulse rounded-full" />
           )}
 
+          {/* Unauthenticated State */}
+          {!isLoading && !isAuthenticated && (
+            <div className="flex items-center gap-2">
+              <Button asChild variant="ghost" className="hidden sm:flex font-medium">
+                <Link href="/auth/signin">Sign In</Link>
+              </Button>
+              <Button asChild className="font-semibold px-4!">
+                <Link href="/auth/signup">Get Started</Link>
+              </Button>
+            </div>
+          )}
+
+          {/* Authenticated State */}
           {!isLoading && isAuthenticated && (
             <>
               <div className="hidden md:flex items-center gap-2 mr-2 bg-muted/50 px-2.5 py-1 rounded-full border border-border">

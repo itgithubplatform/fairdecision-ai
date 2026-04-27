@@ -3,6 +3,7 @@ import { prisma } from "@/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { VertexAI } from "@google-cloud/vertexai";
+import { revalidateTag } from "next/cache";
 
 export async function POST(req: Request) {
   try {
@@ -90,7 +91,7 @@ export async function POST(req: Request) {
     const existingRuleText = await prisma.customRule.findFirst({
       where: { ruleText: generatedRule.proposedRuleText, userId: activeUserId }
     });
-
+    revalidateTag("userRule-" + activeUserId)
     return NextResponse.json({
       ...generatedRule,
       isDuplicate: !!existingRuleText 

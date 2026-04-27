@@ -3,12 +3,12 @@ import { prisma } from '@/prisma'
 import { getAuthUser } from '@/lib/getAuthUser'
 import { revalidateTag } from 'next/cache'
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = await getAuthUser(req)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const ruleId = params.id
+    const ruleId = (await params).id
 
     const existingRule = await prisma.customRule.findUnique({ where: { id: ruleId, userId: user.id } })
     if (!existingRule) {
@@ -29,12 +29,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = await getAuthUser(req)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const ruleId = params.id
+    const ruleId = (await params).id
 
     const existingRule = await prisma.customRule.findUnique({ where: { id: ruleId } })
     if (!existingRule || existingRule.userId !== user.id) {
